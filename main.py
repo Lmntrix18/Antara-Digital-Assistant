@@ -1,55 +1,61 @@
-import requests
-from bs4 import BeautifulSoup
-from gtts import gTTS
-import pyttsx3
-import os
+from voice_engine import VoiceEngine
+from command_handler import CommandHandler
+import logging
+import time
 
-def speak(text,lang="en", tld="co.uk"):
-    """Generate speech as an audio file using gTTS."""
-    print(f"Antara: {text}")
-    tts = gTTS(text,lang=lang,tld=tld)
-    tts.save("response.mp3")
-    print("Antara: Playing response...")
-    #os.system("response.mp3") 
+class AntaraAssistant:
+    def __init__(self):
+        self.voice = VoiceEngine()
+        self.handler = CommandHandler()
+        self._configure_logging()
 
-def listen():
-    
-    return input("You: ")
+    def _configure_logging(self):
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.FileHandler("antara.log"),
+                logging.StreamHandler()
+            ]
+        )
 
-def fetch_news():
-    """Fetch the latest news headlines."""
-    url = "https://news.google.com/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1YlY4U0FtbGtHZ0pEUVNnQVAB"  # Replace with a valid news API or RSS feed
-    try:
-        response = requests.get(url)
-        response.raise_for_status() 
-        soup = BeautifulSoup(response.text, "html.parser")
-        headlines = [item.text.strip() for item in soup.find_all("h3")[:5]]
-        return headlines if headlines else ["hello no headlines available at the moment ."]
-    except requests.RequestException:
-        return ["Unable to fetch news. Please check your internet connection."]
+    def _welcome_sequence(self):
+        """Initial startup sequence"""
+        self.voice.speak("Initializing Antara Voice Assistant systems")
+        time.sleep(0.5)
+        self.voice.speak("All systems nominal")
+        time.sleep(0.3)
+        self.voice.speak("Hello! I'm Antara, your personal AI assistant")
 
-def main():
-    """Main function to handle user commands."""
-    speak("Hello! I am Antara, your digital assistant. How can I help you?")
-    while True:
-        command = listen()
-        if command:
-            command = command.lower()
-            if "news" in command:
-                speak("Fetching the latest news for you.")
-                news = fetch_news()
-                for headline in news:
-                    speak(headline)
-            elif "stop" in command:
-                speak("Goodbye! Have a great day!")
-                break
-            elif "read" in command:
-                speak('As kids listen to these stories, they learn valuable life lessons that they can practically apply to their lives. These stories help them navigate their own life more easily. With a vast array of stories to choose from, parents can select tales that are not only age-appropriate but also reinforce the values they want their child to learn. These stories will help them raise their children to be ideal citizens of society who are compassionate towards both animals and humans.')
+    def run(self):
+        """Main interaction loop"""
+        self._welcome_sequence()
+        
+        while True:
+            try:
+                command = self.voice.listen()
+                if not command:
+                    continue
                 
-            else:
-                speak("Sorry, I can't help with that yet. Please try asking something else.")
-        else:
-            speak("I didn't hear anything. Please type something.")
+                logging.info(f"User command: {command}")
+                
+                if "exit" in command or "quit" in command:
+                    self.voice.speak("Shutting down systems. Goodbye!")
+                    break
+                
+                response = self.handler.process_command(command)
+                if response:
+                    logging.info(f"Antara response: {response}")
+                    self.voice.speak(response)
+                    
+            except KeyboardInterrupt:
+                self.voice.speak("Emergency shutdown initiated")
+                break
+            except Exception as e:
+                logging.error(f"Critical error: {str(e)}")
+                self.voice.speak("I encountered an error. Rebooting systems")
+                time.sleep(1)
 
 if __name__ == "__main__":
-    main()
+    assistant = AntaraAssistant()
+    assistant.run()
